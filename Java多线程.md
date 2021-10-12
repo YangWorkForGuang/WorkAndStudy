@@ -186,6 +186,186 @@ public class MyRunnableDemo {
 - 线程等待时间到了或被notify/notifyAll唤醒后，会进入同步队列竞争锁，如果获得锁，进入RUNNABLE状态，否则进入BLOCKED状态等待获取锁。
 - 同步队列是在同步的环境下才有的概念，一个对象对应一个同步队列。
 
+## Condition
+
+参考：[java condition使用及分析](https://blog.csdn.net/bohu83/article/details/51098106?utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-2.control&dist_request_id=1328679.10635.16161473830194159&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-2.control)
+
+Condition是在java 1.5中才出现的，它用来替代传统的Object的wait()、notify()实现线程间的协作，相比使用Object的wait()、notify()，**使用Condition的await()、signal()这种方式实现线程间协作更加安全和高效**。
+
+- Condition是个接口，基本的方法就是await()和signal()方法；
+  - Conditon中的await()对应Object的wait()；
+  - Condition中的signal()对应Object的notify()；
+- Condition依赖于Lock接口，生成一个Condition的基本代码是lock.newCondition() 
+- 调用Condition的await()和signal()方法，都必须在lock保护之内，就是说必须在lock.lock()和lock.unlock之间才可以使用。
+
+condition可以通俗的理解为条件队列。当一个线程在调用了await方法以后，直到线程等待的某个条件为真的时候才会被唤醒。这种方式为线程提供了更加简单的等待/通知模式。Condition必须要配合锁一起使用，因为对共享状态变量的访问发生在多线程环境下。一个Condition的实例必须与一个Lock绑定，因此Condition一般都是作为Lock的内部实现。
+
+### Condition实现简单的阻塞队列
+
+```java
+package condition;
+
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * @author Yg
+ * @date 2021/10/11
+ */
+public class ConTest {
+
+    final Lock lock = new ReentrantLock();
+    final Condition condition = lock.newCondition();
+
+    public static void main(String[] args) {
+        // TODO Auto-generated method stub
+        ConTest test = new ConTest();
+        Producer producer = test.new Producer();
+        Consumer consumer = test.new Consumer();
+
+        consumer.start();
+        producer.start();
+    }
+
+    class Consumer extends Thread{
+
+        @Override
+        public void run() {
+            consume();
+        }
+
+        private void consume() {
+            try {
+                lock.lock();
+                System.out.println("我在等一个新信号"+this.currentThread().getName());
+                condition.await();
+
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } finally{
+                System.out.println("拿到一个信号"+this.currentThread().getName());
+                lock.unlock();
+            }
+        }
+    }
+
+    class Producer extends Thread{
+
+        @Override
+        public void run() {
+            produce();
+        }
+
+        private void produce() {
+            try {
+                lock.lock();
+                System.out.println("我拿到锁"+this.currentThread().getName());
+                condition.signalAll();
+                System.out.println("我发出了一个信号："+this.currentThread().getName());
+            } finally{
+                lock.unlock();
+            }
+        }
+    }
+}
+```
+
+### Condition实现生产者、消费者模式
+
+```java
+package condition;
+
+import java.util.PriorityQueue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ *
+ * @params 杨光
+ * @return 2021-10-11
+ */
+public class ConTest2 {
+    private int queueSize = 10;
+    private PriorityQueue<Integer> queue = new PriorityQueue<Integer>(queueSize);
+    private Lock lock = new ReentrantLock();
+    private Condition notFull = lock.newCondition();
+    private Condition notEmpty = lock.newCondition();
+
+    public static void main(String[] args) throws InterruptedException  {
+        ConTest2 test = new ConTest2();
+        Producer producer = test.new Producer();
+        Consumer consumer = test.new Consumer();
+        producer.start();
+        consumer.start();
+        Thread.sleep(0);
+        producer.interrupt();
+        consumer.interrupt();
+    }
+
+    class Consumer extends Thread{
+        @Override
+        public void run() {
+            consume();
+        }
+        volatile boolean flag=true;
+        private void consume() {
+            while(flag){
+                lock.lock();
+                try {
+                    while(queue.isEmpty()){
+                        try {
+                            System.out.println("队列空，等待数据");
+                            notEmpty.await();
+                        } catch (InterruptedException e) {
+                            flag =false;
+                        }
+                    }
+                    queue.poll();                //每次移走队首元素
+                    notFull.signal();
+                    System.out.println("从队列取走一个元素，队列剩余"+queue.size()+"个元素");
+                } finally{
+                    lock.unlock();
+                }
+            }
+        }
+    }
+
+    class Producer extends Thread{
+        @Override
+        public void run() {
+            produce();
+        }
+        volatile boolean flag=true;
+        private void produce() {
+            while(flag){
+                lock.lock();
+                try {
+                    while(queue.size() == queueSize){
+                        try {
+                            System.out.println("队列满，等待有空余空间");
+                            notFull.await();
+                        } catch (InterruptedException e) {
+                            flag =false;
+                        }
+                    }
+                    queue.offer(1);        //每次插入一个元素
+                    notEmpty.signal();
+                    System.out.println("向队列取中插入一个元素，队列剩余空间："+(queueSize-queue.size()));
+                } finally{
+                    lock.unlock();
+                }
+            }
+        }
+    }
+}
+
+```
+
+
+
 # JAVA锁机制
 
 ## Synchronized关键字
@@ -265,6 +445,14 @@ public class LoggingWidget extends Widget {
 - Lock方式来获取锁**支持中断、超时不获取、是非阻塞的**
 - **提高了语义化**，哪里加锁，哪里解锁都得写出来
 - 支持Condition条件对象
+
+### lock()、trylock()、lockInterruptibly()三种方法比较
+
+- lock：调用后一直阻塞到获得锁
+
+- tryLock：尝试是否能获得锁 会立即返回获取结果
+
+- lockInterruptibly：调用后一直阻塞到获得锁 但是接受中断信号（例如Thread sleep）
 
 # 线程池
 
