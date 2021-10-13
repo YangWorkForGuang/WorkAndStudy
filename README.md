@@ -24,3 +24,20 @@
 
 # 项目目录
 
+
+
+# Git提交问题
+
+```
+fatal: unable to access 'https://github.com/YangWorkForGuang/WorkAndStudy.git/': OpenSSL SSL_read: Connection was reset, errno 10054
+```
+
+可能是因为网络的问题导致每次都会出现这个问题
+
+解决方法：`git push origin master`之前，输入`git config --global http.sslVerify "false"`
+
+## 常用的git命令
+
+git diff：查看哪些文件发生了哪些变化
+
+git diff --name-only：只显示变化文件的文件名

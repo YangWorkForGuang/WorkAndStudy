@@ -106,3 +106,46 @@ public static int searchInsert(int[] nums, int target) {
 **注意**
 
 注意特殊情况，只有一个值，两个值，三个值。
+
+## 0066 加一
+
+**题目**：[ 加一](https://leetcode-cn.com/problems/plus-one/)
+
+**重点**
+
+- 重点在于全是9的情况下，最高位+1之后，因为进位会出现新的位数。
+- 我是通过flag来判断有没有进位。
+- 但是思考一下，出现多余的一位一定是因为999...9这种情况，因为结果一定是1000...0这种结果。
+
+**思路**
+
+- 可以直接单独判断这种情况。
+
+  ```java
+  digits= new int[digits.length + 1];
+  digits[0] = 1;
+  return digits;
+  ```
+
+  因为Java数组初始化后，默认每一位为0。
+
+**代码**
+
+```java
+class Solution {
+    public int[] plusOne(int[] digits) {
+        for (int i = digits.length - 1; i >= 0; i--) {
+            digits[i]++;
+            digits[i] = digits[i] % 10;
+            if (digits[i] != 0) return digits;
+        }
+        digits = new int[digits.length + 1];
+        digits[0] = 1;
+        return digits;
+    }
+}
+```
+
+**注意**
+
+这种题属于按部就班题，只要是按照题目的叙述就可以做出来，但是也要去思考，如何能够将一些情况适当的转化为更加简单的情况。
