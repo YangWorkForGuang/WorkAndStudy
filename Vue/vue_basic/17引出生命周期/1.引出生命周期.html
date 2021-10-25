@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>引出生命周期</title>
+        <!-- 引出Vue -->
+        <script type="text/javascript" src="../JS/vue.js"></script>
+    </head>
+    <body>
+        <!-- 准备好一个容器 -->
+        <div id="root">
+            <h2 :style="{opacity: opacity}">欢迎学习Vue</h2>
+        </div>
+    </body>
+
+    <script type="text/javascript">
+        Vue.config.productionTip = false;
+        new Vue({
+            el:'#root',
+            data: {
+                opacity: 1
+            }
+        })
+    </script>
+    
+</html>
